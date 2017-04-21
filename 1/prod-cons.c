@@ -33,6 +33,8 @@ int rand_num(int max, int min) {
 		__asm__ __volatile__(
 				"rdrand %0":"=r"(result)
 				);
+	} else {
+		result = (int)genrand_int32();
 	}
 
 	result = abs(result % (max-min));
