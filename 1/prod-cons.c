@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <semaphore.h>
@@ -16,12 +17,12 @@ pthread_mutex_t mutex;
 sem_t full, empty;
 int counter;
 
-bool isx86();
+int isx86();
 int rand_num(int, int);
-void consumer();
-void producer();
+void *consumer(void *);
+void *producer(void *);
 
-bool isx86() {
+int isx86() {
 	unsigned int eax = 0x01, ebx, ecx, edx;
 	
 	__asm__ __volatile__(
@@ -30,9 +31,9 @@ bool isx86() {
 			: "a"(eax)
 			);
 
-	if (ecx & 0x40000000) { return true; }
+	if (ecx & 0x40000000) { return 1; }
 	
-	return false;
+	return 0;
 }
 
 int rand_num(int max, int min) {
@@ -54,17 +55,18 @@ int rand_num(int max, int min) {
 	return result;
 }
 
-void producer() {
+void *producer(void *args) {
 	while(1) {
-		int hold_time = rand_num(5, 0);
-		sleep(hold_time);
+		int hold_time = rand_num(9, 2);
+		sleep(rand_num(7, 3));
 
-		int value = rand_num(50000000, 0);
+		int value = rand_num(INT_MAX, 0);
 
 		sem_wait(&empty);
 
 		pthread_mutex_lock(&mutex);
 		if (counter < BUFFER_SIZE){
+			printf("producer: produce value %d\n", value);
 			items[counter].value = value;
 			items[counter].hold_time = hold_time;
 			counter++;
@@ -75,8 +77,21 @@ void producer() {
 	}
 }
 
-void consumer() {
-	
+void *consumer(void *args) {
+	while(1) {
+		sleep(items[counter].hold_time);
+
+		sem_wait(&full);
+
+		pthread_mutex_lock(&mutex);
+		if (counter < BUFFER_SIZE) {
+			printf("consumer: consume value %d\n", items[counter].value);
+			counter--;
+		}
+		pthread_mutex_unlock(&mutex);
+		
+		sem_post(&empty);
+	}	
 }
 
 int main(int argc, char* argv[]) {
@@ -96,7 +111,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	for (int i=0; i<(2*threads); i++) {
-		pthread_join(threads[i], NULL);
+		pthread_join(thread_array[i], NULL);
 	}
 
 	return 0;
