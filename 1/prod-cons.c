@@ -58,22 +58,23 @@ int rand_num(int max, int min) {
 void *producer(void *args) {
 	while(1) {
 		int hold_time = rand_num(9, 2);
-		sleep(rand_num(7, 3));
+		int sleep_time = rand_num(7, 3);
+		sleep(sleep_time);
+		int value = rand_num(50000, 1);
 
-		int value = rand_num(INT_MAX, 0);
-
-		sem_wait(&empty);
-
+//		sem_wait(&empty);
+				
 		pthread_mutex_lock(&mutex);
 		if (counter < BUFFER_SIZE){
 			printf("producer: produce value %d\n", value);
 			items[counter].value = value;
 			items[counter].hold_time = hold_time;
+			if (counter == 31) { counter = 0; }
 			counter++;
 		}
 		pthread_mutex_unlock(&mutex);
 
-		sem_post(&full);
+//		sem_post(&full);
 	}
 }
 
@@ -81,38 +82,48 @@ void *consumer(void *args) {
 	while(1) {
 		sleep(items[counter].hold_time);
 
-		sem_wait(&full);
+//		sem_wait(&full);
 
 		pthread_mutex_lock(&mutex);
-		if (counter < BUFFER_SIZE) {
+		if (counter < BUFFER_SIZE && items[counter].value != 0) {
 			printf("consumer: consume value %d\n", items[counter].value);
-			counter--;
+//			if (counter == 31) { counter = 0; }
+//			counter--;
 		}
 		pthread_mutex_unlock(&mutex);
 		
-		sem_post(&empty);
+//		sem_post(&empty);
 	}	
 }
 
 int main(int argc, char* argv[]) {
 	counter = 0;
+	pthread_t id;
+	pthread_attr_t attr;
+	pthread_mutex_init(&mutex, NULL);
+	sem_init(&full, 0, 0);
+	sem_init(&empty, 0, BUFFER_SIZE);
+	pthread_attr_init(&attr);
 	
-	if (argc < 1) {
-		printf("Usage: ./a.out [number of threads]");
+	if (argc < 2) {
+		printf("Usage: ./a.out [number of threads]\n");
+		return 0;
 	}
 	int threads = atoi(argv[1]);
 	isx86();
 
-	pthread_t thread_array[2*threads];
-	
 	for (int i=0; i<threads; i++) {
-		pthread_create(&thread_array[i], NULL, consumer, NULL);
-		pthread_create(&thread_array[i+1], NULL, producer, NULL);
+		pthread_create(&id, &attr, producer, NULL);
+		pthread_create(&id, &attr, consumer, NULL);
 	}
 
+	printf("threads created ... \n");	
+//	sleep(10);	
 	for (int i=0; i<(2*threads); i++) {
-		pthread_join(thread_array[i], NULL);
+		pthread_join(id, NULL);
 	}
+
+	printf("threads joined ... \n");
 
 	return 0;
 }
