@@ -63,15 +63,17 @@ void *producer(void *args) {
 		int value = rand_num(50000, 1);
 
 		sem_wait(&empty);
+		pthread_mutex_lock(&mutex);
 				
 		if (counter < BUFFER_SIZE){
-			pthread_mutex_lock(&mutex);
 			printf("producer: produce value %d\n", value);
 			items[counter].value = value;
 			items[counter].hold_time = hold_time;
 			//if (counter == 31) { counter = 0; }
 			counter++;
-		} else { pthread_mutex_unlock(&mutex); }
+		} 
+		
+		pthread_mutex_unlock(&mutex); }
 
 		sem_post(&full);
 	}
