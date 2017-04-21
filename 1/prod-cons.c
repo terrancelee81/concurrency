@@ -62,37 +62,34 @@ void *producer(void *args) {
 		sleep(sleep_time);
 		int value = rand_num(50000, 1);
 
-//		sem_wait(&empty);
+		sem_wait(&empty);
 				
-		pthread_mutex_lock(&mutex);
 		if (counter < BUFFER_SIZE){
+			pthread_mutex_lock(&mutex);
 			printf("producer: produce value %d\n", value);
 			items[counter].value = value;
 			items[counter].hold_time = hold_time;
-			if (counter == 31) { counter = 0; }
+			//if (counter == 31) { counter = 0; }
 			counter++;
-		}
-		pthread_mutex_unlock(&mutex);
+		} else { pthread_mutex_unlock(&mutex); }
 
-//		sem_post(&full);
+		sem_post(&full);
 	}
 }
 
 void *consumer(void *args) {
 	while(1) {
 		sleep(items[counter].hold_time);
+		
+		sem_wait(&full);
 
-//		sem_wait(&full);
-
-		pthread_mutex_lock(&mutex);
-		if (counter < BUFFER_SIZE && items[counter].value != 0) {
+		if (counter < BUFFER_SIZE /*&& items[counter].value != 0*/) {
+			pthread_mutex_lock(&mutex);
 			printf("consumer: consume value %d\n", items[counter].value);
 //			if (counter == 31) { counter = 0; }
 //			counter--;
-		}
-		pthread_mutex_unlock(&mutex);
-		
-//		sem_post(&empty);
+		} else { pthread_mutex_unlock(&mutex); }
+		sem_post(&empty);
 	}	
 }
 
@@ -105,25 +102,29 @@ int main(int argc, char* argv[]) {
 	sem_init(&empty, 0, BUFFER_SIZE);
 	pthread_attr_init(&attr);
 	
-	if (argc < 2) {
-		printf("Usage: ./a.out [number of threads]\n");
+	if (argc < 3) {
+		printf("Usage: ./a.out [number of producer threads] [number of consumer threads]\n");
 		return 0;
 	}
-	int threads = atoi(argv[1]);
+	int prod_threads = atoi(argv[1]);
+	int cons_threads = atoi(argv[2]);
 	isx86();
 
-	for (int i=0; i<threads; i++) {
+	for (int i=0; i<prod_threads; i++) {
 		pthread_create(&id, &attr, producer, NULL);
+	}
+	printf("producer threads created ... \n");
+
+	for (int i=0; i<cons_threads; i++) {
 		pthread_create(&id, &attr, consumer, NULL);
 	}
+	printf("consumer threads created ... \n");	
+	sleep(100);	
+//	for (int i=0; i<(2*threads); i++) {
+//		pthread_join(id, NULL);
+//	}
 
-	printf("threads created ... \n");	
-//	sleep(10);	
-	for (int i=0; i<(2*threads); i++) {
-		pthread_join(id, NULL);
-	}
-
-	printf("threads joined ... \n");
+//	printf("threads joined ... \n");
 
 	return 0;
 }
