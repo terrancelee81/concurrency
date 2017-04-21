@@ -73,8 +73,7 @@ void *producer(void *args) {
 			counter++;
 		} 
 		
-		pthread_mutex_unlock(&mutex); }
-
+		pthread_mutex_unlock(&mutex);
 		sem_post(&full);
 	}
 }
@@ -84,13 +83,15 @@ void *consumer(void *args) {
 		sleep(items[counter].hold_time);
 		
 		sem_wait(&full);
-
+		pthread_mutex_lock(&mutex);
+		
 		if (counter < BUFFER_SIZE /*&& items[counter].value != 0*/) {
-			pthread_mutex_lock(&mutex);
-			printf("consumer: consume value %d\n", items[counter].value);
+			printf("consumer: consume value %d\n", items[counter-1].value);
 //			if (counter == 31) { counter = 0; }
 //			counter--;
-		} else { pthread_mutex_unlock(&mutex); }
+		}
+		
+		pthread_mutex_unlock(&mutex);
 		sem_post(&empty);
 	}	
 }
